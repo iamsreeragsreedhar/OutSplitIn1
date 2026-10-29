@@ -11,6 +11,7 @@ import 'package:out_split_in/feature/notification/view/notification_screen.dart'
 import 'package:out_split_in/feature/onboarding/view/onboarding_screen.dart';
 import 'package:out_split_in/feature/profile/view/profile.dart';
 import 'package:out_split_in/feature/reports/view/reports_screen.dart';
+import 'package:out_split_in/feature/subscriptions/view/subscriptions_screen.dart';
 
 GoRouter createRouter({String initialLocation = '/'}) => GoRouter(
   initialLocation: initialLocation,
@@ -67,6 +68,15 @@ GoRouter createRouter({String initialLocation = '/'}) => GoRouter(
         context: context,
         state: state,
         child: const ChatbotScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/subscriptions',
+      name: 'subscriptions',
+      pageBuilder: (context, state) => buildAppTransitionPage(
+        context: context,
+        state: state,
+        child: const SubscriptionsScreen(),
       ),
     ),
     StatefulShellRoute.indexedStack(

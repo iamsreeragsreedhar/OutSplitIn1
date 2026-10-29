@@ -18,6 +18,7 @@ import 'package:out_split_in/feature/home/view_model/home/home_bloc.dart';
 import 'package:out_split_in/feature/notification/services/notification_service.dart';
 import 'package:out_split_in/feature/notification/view_model/notification/notification_bloc.dart';
 import 'package:out_split_in/feature/profile/view_model/profile/profile_bloc.dart';
+import 'package:out_split_in/feature/subscriptions/services/subscription_service.dart';
 
 final sl = GetIt.instance;
 
@@ -29,6 +30,7 @@ Future<void> depInit() async {
   sl.registerLazySingleton(() => CategoryService());
   sl.registerLazySingleton(() => NotificationService());
   sl.registerLazySingleton(() => ChatbotService());
+  sl.registerLazySingleton(() => SubscriptionService(firestore: sl(), auth: sl()));
   sl.registerFactory(
     () => FirebaseServices(
       offlineStorageService: sl<OfflineStorageService>(),

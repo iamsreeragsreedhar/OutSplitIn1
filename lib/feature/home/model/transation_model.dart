@@ -26,6 +26,7 @@ class TransactionModel {
   final String? message;
   final String? sender;
   final String smsId;
+  final String? receiptPath;
 
   const TransactionModel({
     required this.id,
@@ -39,6 +40,7 @@ class TransactionModel {
     this.message,
     this.sender,
     required this.smsId,
+    this.receiptPath,
   });
 
   factory TransactionModel.fromMap(Map<String, dynamic> map) {
@@ -59,6 +61,7 @@ class TransactionModel {
       date: DateTime.parse(map['date']),
       autoDetected: map['autoDetected'] ?? false,
       category: stringToCategory(map['category'] ?? 'other'),
+      receiptPath: map['receiptPath'] as String?,
     );
   }
 
@@ -74,6 +77,7 @@ class TransactionModel {
     String? message,
     String? sender,
     String? smsId,
+    String? receiptPath,
   }) {
     return TransactionModel(
       id: id ?? this.id,
@@ -87,6 +91,7 @@ class TransactionModel {
       message: message ?? this.message,
       sender: sender ?? this.sender,
       smsId: smsId ?? this.smsId,
+      receiptPath: receiptPath ?? this.receiptPath,
     );
   }
 
@@ -102,6 +107,7 @@ class TransactionModel {
       'date': date.toIso8601String(),
       'autoDetected': autoDetected,
       'category': category.toString().split('.').last,
+      if (receiptPath != null) 'receiptPath': receiptPath,
     };
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:out_split_in/core/shared_widgets/app_fade_slide.dart';
+import 'package:out_split_in/core/shared_widgets/export_statement_sheet.dart';
 import 'package:out_split_in/feature/home/model/transation_model.dart';
 import 'package:out_split_in/feature/home/view_model/home/home_bloc.dart';
 import 'package:out_split_in/feature/reports/widgets/category_spend_tile.dart';
@@ -152,7 +153,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           children: [
                             AppFadeSlide(
                               direction: SlideDirection.fromTop,
-                              child: _header(isDark),
+                              child: _header(isDark, filtered),
                             ),
                             const SizedBox(height: 18),
 
@@ -259,26 +260,55 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  Widget _header(bool isDark) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _header(bool isDark, List<TransactionModel> filteredTxs) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          'Analytics & Reports',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -0.8,
-            color: isDark ? Colors.white : textDark,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Analytics & Reports',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.8,
+                  color: isDark ? Colors.white : textDark,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Visual breakdown of your financial health.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isDark ? const Color(0xFFA1AFA9) : muted,
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 6),
-        Text(
-          'Visual breakdown of your financial health.',
-          style: TextStyle(
-            fontSize: 14,
-            color: isDark ? const Color(0xFFA1AFA9) : muted,
+        FilledButton.tonalIcon(
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF0BA874).withValues(alpha: 0.12),
+            foregroundColor: const Color(0xFF0BA874),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           ),
+          onPressed: () {
+            final period = _timeframe == TimeframeFilter.week
+                ? 'Weekly Statement'
+                : (_timeframe == TimeframeFilter.month
+                    ? 'Monthly Statement'
+                    : 'All-Time Statement');
+            ExportStatementSheet.show(
+              context,
+              transactions: filteredTxs,
+              periodTitle: period,
+            );
+          },
+          icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+          label: const Text('Export', style: TextStyle(fontWeight: FontWeight.w700)),
         ),
       ],
     );

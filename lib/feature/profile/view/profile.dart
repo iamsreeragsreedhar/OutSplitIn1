@@ -10,10 +10,10 @@ import 'package:out_split_in/core/localization/app_localizations.dart';
 import 'package:out_split_in/core/localization/locale_controller.dart';
 import 'package:out_split_in/core/service_locator/di.dart';
 import 'package:out_split_in/core/services/budget_service.dart';
-import 'package:out_split_in/core/services/excel_export_service.dart';
 import 'package:out_split_in/core/services/firebase_services.dart';
 import 'package:out_split_in/core/services/upi_notification_service.dart';
 import 'package:out_split_in/core/shared_widgets/app_fade_slide.dart';
+import 'package:out_split_in/core/shared_widgets/export_statement_sheet.dart';
 import 'package:out_split_in/core/shared_widgets/language_selector_modal.dart';
 import 'package:out_split_in/core/shared_widgets/monthly_budget_dialog.dart';
 import 'package:out_split_in/core/shared_widgets/snackbar.dart';
@@ -565,24 +565,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _exportData(
-    BuildContext context,
-    List<TransactionModel> transactions,
-  ) async {
-    if (transactions.isEmpty) {
-      AppSnackbar.info(context, 'No transactions available to export');
-      return;
-    }
-    try {
-      AppSnackbar.info(context, 'Preparing Excel spreadsheet...');
-      await ExcelExportService.exportTransactions(transactions);
-    } catch (e) {
-      if (context.mounted) {
-        AppSnackbar.error(context, 'Failed to export transactions: $e');
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -660,9 +642,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             _divider(isDark),
                             SettingsListtile(
-                              icon: Icons.table_view_outlined,
-                              title: l10n.exportData,
-                              subtitle: l10n.exportSubtitle,
+                              icon: Icons.autorenew_rounded,
+                              title: 'Subscriptions & Recurring Bills',
+                              subtitle: 'Track renewals, monthly burn & reminders',
+                              ontap: () => context.push('/subscriptions'),
+                            ),
+                            _divider(isDark),
+                            SettingsListtile(
+                              icon: Icons.description_outlined,
+                              title: 'Export Statement (PDF & Excel)',
+                              subtitle: 'Download or print branded statements',
                               ontap: () {
                                 final txs = context
                                     .read<HomeBloc>()
@@ -670,7 +659,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     .transactions
                                     .whereType<TransactionModel>()
                                     .toList();
-                                _exportData(context, txs);
+                                ExportStatementSheet.show(
+                                  context,
+                                  transactions: txs,
+                                  periodTitle: 'Complete Financial Statement',
+                                );
                               },
                             ),
                             _divider(isDark),

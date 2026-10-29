@@ -8,14 +8,15 @@ import 'package:intl/intl.dart';
 import 'package:out_split_in/core/localization/app_localizations.dart';
 import 'package:out_split_in/core/service_locator/di.dart';
 import 'package:out_split_in/core/services/budget_service.dart';
-import 'package:out_split_in/core/services/excel_export_service.dart';
 import 'package:out_split_in/core/services/firebase_services.dart';
 import 'package:out_split_in/core/services/network_service.dart';
 import 'package:out_split_in/core/services/upi_notification_service.dart';
 import 'package:out_split_in/core/shared_widgets/animated_currency_text.dart';
 import 'package:out_split_in/core/shared_widgets/app_fade_slide.dart';
+import 'package:out_split_in/core/shared_widgets/export_statement_sheet.dart';
 import 'package:out_split_in/core/shared_widgets/monthly_budget_dialog.dart';
 import 'package:out_split_in/core/shared_widgets/network_status_banner.dart';
+import 'package:out_split_in/core/shared_widgets/receipt_viewer_dialog.dart';
 import 'package:out_split_in/core/shared_widgets/snackbar.dart';
 import 'package:out_split_in/core/theme/app_colors.dart';
 import 'package:out_split_in/feature/home/model/transation_model.dart';
@@ -280,6 +281,79 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               ),
                             ),
 
+                            const SizedBox(height: 14),
+
+                            // Subscriptions & Recurring Bills Quick Access
+                            AppFadeSlide(
+                              delay: const Duration(milliseconds: 205),
+                              child: InkWell(
+                                onTap: () => context.push('/subscriptions'),
+                                borderRadius: BorderRadius.circular(18),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF1E2824) : Colors.white,
+                                    borderRadius: BorderRadius.circular(18),
+                                    border: Border.all(
+                                      color: isDark ? const Color(0xFF283631) : const Color(0xFFE9EFEC),
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: isDark ? 0.1 : 0.02),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(9),
+                                        decoration: BoxDecoration(
+                                          color: isDark ? const Color(0xFF24332D) : Appcolors.lightGreen,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.autorenew_rounded,
+                                          color: Appcolors.primary,
+                                          size: 19,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 13),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Subscriptions & Recurring Bills',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w700,
+                                                color: isDark ? Colors.white : Appcolors.textDark,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              'Manage Netflix, Gym, Rent & renewals',
+                                              style: TextStyle(
+                                                fontSize: 11.5,
+                                                color: isDark ? const Color(0xFFA1AFA9) : Appcolors.textMuted,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Icon(
+                                        Icons.arrow_forward_ios_rounded,
+                                        size: 14,
+                                        color: isDark ? const Color(0xFFA1AFA9) : Appcolors.textMuted,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+
                             const SizedBox(height: 28),
 
                             // Recent Transactions Header
@@ -311,8 +385,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     ),
                                     const SizedBox(width: 8),
                                     IconButton(
-                                      tooltip: l10n.exportExcel,
-                                      onPressed: () => _exportData(context, transactions),
+                                      tooltip: 'Export Statement (PDF & Excel)',
+                                      onPressed: () => ExportStatementSheet.show(
+                                        context,
+                                        transactions: transactions,
+                                        periodTitle: 'Transactions Statement',
+                                      ),
                                       icon: Container(
                                         padding: const EdgeInsets.all(6),
                                         decoration: BoxDecoration(
@@ -327,7 +405,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                           ),
                                         ),
                                         child: const Icon(
-                                          Icons.table_view_outlined,
+                                          Icons.description_outlined,
                                           size: 16,
                                           color: Appcolors.primary,
                                         ),
@@ -528,21 +606,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
       ),
     );
-  }
-
-  Future<void> _exportData(BuildContext context, List<TransactionModel> transactions) async {
-    if (transactions.isEmpty) {
-      AppSnackbar.info(context, 'No transactions available to export');
-      return;
-    }
-    try {
-      AppSnackbar.info(context, 'Preparing Excel spreadsheet...');
-      await ExcelExportService.exportTransactions(transactions);
-    } catch (e) {
-      if (context.mounted) {
-        AppSnackbar.error(context, 'Failed to export transactions: $e');
-      }
-    }
   }
 
   List<TransactionModel> _applyFilter(List<TransactionModel> list) {
@@ -1219,6 +1282,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               ),
                             ),
                           ),
+                        if (transaction.receiptPath != null && transaction.receiptPath!.isNotEmpty)
+                          Container(
+                            margin: const EdgeInsets.only(left: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF26332C) : const Color(0xFFE8F4EE),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.receipt_rounded, size: 10, color: Appcolors.primary),
+                                SizedBox(width: 3),
+                                Text(
+                                  'BILL',
+                                  style: TextStyle(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w800,
+                                    color: Appcolors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
                     const SizedBox(height: 5),
@@ -1439,6 +1526,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     value: transaction.source,
                     isDark: isDark,
                   ),
+                if (transaction.receiptPath != null && transaction.receiptPath!.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.tonalIcon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Appcolors.primary.withValues(alpha: 0.12),
+                        foregroundColor: Appcolors.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                      ),
+                      onPressed: () {
+                        ReceiptViewerDialog.show(
+                          context,
+                          receiptPath: transaction.receiptPath!,
+                          title: transaction.title,
+                        );
+                      },
+                      icon: const Icon(Icons.receipt_long_rounded, size: 20),
+                      label: const Text(
+                        'View Attached Receipt / Bill',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 24),
                 // Actions: Switch Type + Delete
                 Row(

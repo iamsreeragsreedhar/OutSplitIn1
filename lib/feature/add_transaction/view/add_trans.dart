@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:out_split_in/core/service_locator/di.dart';
 import 'package:out_split_in/core/services/network_service.dart';
 import 'package:out_split_in/core/shared_widgets/app_fade_slide.dart';
+import 'package:out_split_in/core/shared_widgets/receipt_viewer_dialog.dart';
 
 import 'package:out_split_in/core/shared_widgets/extensions/date_ext.dart';
 import 'package:out_split_in/core/shared_widgets/snackbar.dart';
@@ -43,6 +47,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   final amountController = TextEditingController();
   final noteController = TextEditingController();
+  File? _receiptFile;
 
   late final NetworkService _networkService;
   StreamSubscription<bool>? _networkSubscription;
@@ -144,6 +149,134 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     }
   }
 
+  Future<void> _pickReceipt(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 1600,
+      );
+      if (picked == null) return;
+
+      final appDir = await getApplicationDocumentsDirectory();
+      final receiptsDir = Directory('${appDir.path}/receipts');
+      if (!await receiptsDir.exists()) {
+        await receiptsDir.create(recursive: true);
+      }
+
+      final fileName = 'receipt_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final savedFile =
+          await File(picked.path).copy('${receiptsDir.path}/$fileName');
+
+      if (mounted) {
+        setState(() {
+          _receiptFile = savedFile;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        AppSnackbar.error(context, 'Failed to attach image: $e');
+      }
+    }
+  }
+
+  void _showImageSourceSheet(bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF1E2824) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white24 : Colors.black12,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Text(
+                  'Attach Bill / Receipt',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : textDark,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: primary.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.camera_alt_rounded, color: primary),
+                  ),
+                  title: Text(
+                    'Take a Photo',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : textDark,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Use device camera to snap receipt',
+                    style: TextStyle(
+                      color: isDark ? Colors.white60 : textMuted,
+                      fontSize: 12,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickReceipt(ImageSource.camera);
+                  },
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: primary.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.photo_library_rounded, color: primary),
+                  ),
+                  title: Text(
+                    'Choose from Gallery',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : textDark,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Select existing bill from device photos',
+                    style: TextStyle(
+                      color: isDark ? Colors.white60 : textMuted,
+                      fontSize: 12,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickReceipt(ImageSource.gallery);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void saveTransaction() {
     if (!formKey.currentState!.validate()) return;
 
@@ -168,6 +301,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           date: selectedDate,
           autoDetected: false,
           category: stringToCategory(selectedCategory),
+          receiptPath: _receiptFile?.path,
         ),
       ),
     );
@@ -194,6 +328,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               isExpense = true;
               selectedCategory = '';
               selectedDate = DateTime.now();
+              _receiptFile = null;
             });
 
             context.go('/home');
@@ -270,6 +405,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                           AppFadeSlide(
                             delay: const Duration(milliseconds: 280),
                             child: _buildNoteField(isDark),
+                          ),
+
+                          const SizedBox(height: 24),
+                          _sectionLabel('ATTACH RECEIPT / BILL (OPTIONAL)', isDark),
+                          const SizedBox(height: 10),
+                          AppFadeSlide(
+                            delay: const Duration(milliseconds: 300),
+                            child: _buildReceiptPicker(isDark),
                           ),
 
                           const SizedBox(height: 30),
@@ -752,6 +895,165 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(17),
           borderSide: const BorderSide(color: primary, width: 1.4),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReceiptPicker(bool isDark) {
+    if (_receiptFile != null) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E2824) : Colors.white,
+          borderRadius: BorderRadius.circular(17),
+          border: Border.all(
+            color: primary.withValues(alpha: 0.4),
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            // Thumbnail preview
+            GestureDetector(
+              onTap: () {
+                ReceiptViewerDialog.show(
+                  context,
+                  receiptPath: _receiptFile!.path,
+                  title: noteController.text.trim().isNotEmpty
+                      ? noteController.text.trim()
+                      : 'Attached Receipt',
+                );
+              },
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Image.file(
+                      _receiptFile!,
+                      width: 64,
+                      height: 64,
+                      fit: BoxFit.cover,
+                    ),
+                    Container(
+                      width: 64,
+                      height: 64,
+                      color: Colors.black.withValues(alpha: 0.25),
+                      child: const Icon(
+                        Icons.fullscreen_rounded,
+                        color: Colors.white,
+                        size: 26,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            // Info text
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.check_circle_rounded,
+                        color: primary,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Receipt Attached',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: isDark ? Colors.white : textDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Tap thumbnail to preview / zoom',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? const Color(0xFFA1AFA9) : textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Change or Remove
+            IconButton(
+              tooltip: 'Remove receipt',
+              icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+              onPressed: () {
+                setState(() {
+                  _receiptFile = null;
+                });
+              },
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Unselected state
+    return InkWell(
+      onTap: () => _showImageSourceSheet(isDark),
+      borderRadius: BorderRadius.circular(17),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E2824) : Colors.white,
+          borderRadius: BorderRadius.circular(17),
+          border: Border.all(
+            color: isDark ? const Color(0xFF283631) : const Color(0xFFE0E7E3),
+            style: BorderStyle.solid,
+            width: 1.2,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF24332D) : lightGreen,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.add_a_photo_outlined,
+                color: primary,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Upload Bill / Receipt Photo',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: isDark ? Colors.white : textDark,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Take photo or choose from gallery',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? const Color(0xFFA1AFA9) : textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
