@@ -255,7 +255,7 @@ class FirebaseServices {
 
       await docRef
           .set(transaction.toMap())
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 15));
       debugPrint(
         'Transaction synced to cloud successfully: ${transaction.id}',
       );
@@ -298,7 +298,7 @@ class FirebaseServices {
 
         await docRef
             .set(transaction.toMap())
-            .timeout(const Duration(seconds: 5));
+            .timeout(const Duration(seconds: 15));
         await offlineStorage.removePendingSyncTransaction(transaction.id);
         syncedCount++;
       } catch (e) {
@@ -339,7 +339,7 @@ class FirebaseServices {
         }
         tx.set(docRef, transaction.toMap());
         return true;
-      }).timeout(const Duration(seconds: 5));
+      }).timeout(const Duration(seconds: 15));
     } catch (e) {
       debugPrint('Firestore transaction sync error (saved locally): $e');
       await offlineStorage.savePendingSyncTransaction(transaction);
@@ -364,7 +364,7 @@ class FirebaseServices {
           .collection('transactions')
           .orderBy('date', descending: true)
           .get()
-          .timeout(const Duration(seconds: 6));
+          .timeout(const Duration(seconds: 15));
 
       final remoteList = snapshot.docs
           .map((doc) => TransactionModel.fromMap({...doc.data(), 'id': doc.id}))
@@ -409,7 +409,7 @@ class FirebaseServices {
           .collection('transactions')
           .doc(transaction.id)
           .update(transaction.toMap())
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 15));
     } catch (e) {
       debugPrint('Error updating transaction in cloud: $e');
       await offlineStorage.savePendingSyncTransaction(transaction);
@@ -431,7 +431,7 @@ class FirebaseServices {
           .collection('transactions')
           .doc(transactionId)
           .delete()
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 15));
     } catch (e) {
       debugPrint('Error deleting transaction in cloud: $e');
     }

@@ -315,7 +315,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       child: BlocConsumer<AddtransBloc, AddtransState>(
         listener: (context, state) {
           if (state.loadingStatus == LoadingStatus.success) {
-            if (state.msg.toLowerCase().contains('offline') || !_isConnected) {
+            final isOffline = state.msg.toLowerCase().contains('offline');
+            if (isOffline) {
               AppSnackbar.offline(context, state.msg);
             } else {
               AppSnackbar.success(context, state.msg);

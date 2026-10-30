@@ -82,12 +82,12 @@ class NetworkService {
     if (kIsWeb) return true;
     try {
       final lookup = await InternetAddress.lookup('google.com')
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 6));
       return lookup.isNotEmpty && lookup[0].rawAddress.isNotEmpty;
     } catch (_) {
       try {
         final fallback = await InternetAddress.lookup('cloudflare.com')
-            .timeout(const Duration(seconds: 3));
+            .timeout(const Duration(seconds: 6));
         return fallback.isNotEmpty && fallback[0].rawAddress.isNotEmpty;
       } catch (_) {
         return false;
