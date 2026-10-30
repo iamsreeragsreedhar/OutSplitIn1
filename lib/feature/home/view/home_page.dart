@@ -21,6 +21,7 @@ import 'package:out_split_in/core/shared_widgets/snackbar.dart';
 import 'package:out_split_in/core/theme/app_colors.dart';
 import 'package:out_split_in/feature/home/model/transation_model.dart';
 import 'package:out_split_in/feature/home/view_model/home/home_bloc.dart';
+import 'package:out_split_in/feature/home/widgets/auto_detect_card.dart';
 import 'package:out_split_in/feature/home/widgets/empty_transaction_widget.dart';
 import 'package:out_split_in/feature/home/widgets/functions/function.dart';
 import 'package:out_split_in/feature/notification/model/app_notification_model.dart';
@@ -41,6 +42,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _hideBalance = false;
+  bool _hasUpiPermission = true;
   HomeTransactionFilter _activeFilter = HomeTransactionFilter.all;
   late final UpiNotificationService _upiService;
   late final NetworkService _networkService;
@@ -134,8 +136,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _checkNotificationPermission() async {
     final granted = await _upiService.isPermissionGranted();
+    if (mounted) {
+      setState(() {
+        _hasUpiPermission = granted;
+      });
+    }
     if (granted) {
       await _upiService.startListening();
+    }
+  }
+
+  Future<void> _enableAutoDetect() async {
+    await _upiService.requestPermission();
+    final granted = await _upiService.isPermissionGranted();
+    if (!mounted) return;
+    setState(() => _hasUpiPermission = granted);
+    if (granted) {
+      await _upiService.startListening();
+      if (!mounted) return;
+      AppSnackbar.success(
+        context,
+        'UPI Auto-detection enabled',
+      );
     }
   }
 
@@ -207,6 +229,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             const SizedBox(height: 16),
 
                             const NetworkStatusBanner(),
+
+                            if (!_hasUpiPermission) ...[
+                              const SizedBox(height: 12),
+                              AutoDetectCard(onTap: _enableAutoDetect),
+                            ],
 
                             AppFadeSlide(
                               delay: const Duration(milliseconds: 80),

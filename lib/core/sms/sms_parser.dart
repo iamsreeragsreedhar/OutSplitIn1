@@ -146,8 +146,34 @@ class SmsParser {
   }
 
   static DateTime? _extractDate(String text) {
+    const months = <String, int>{
+      'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+      'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+    };
+
+    // 1. Textual month format: 24Oct26, 24-Oct-26, 24 Oct 2026, 24-Oct-2026
+    final alphaMatch = RegExp(
+      r'\b(\d{1,2})[- ]?([a-zA-Z]{3})[- ]?(\d{2,4})\b',
+    ).firstMatch(text);
+    if (alphaMatch != null) {
+      try {
+        final day = int.parse(alphaMatch.group(1)!);
+        final monthStr = alphaMatch.group(2)!.toLowerCase();
+        final rawYear = int.parse(alphaMatch.group(3)!);
+        final year = rawYear < 100 ? 2000 + rawYear : rawYear;
+        final month = months[monthStr];
+        if (month != null) {
+          final result = DateTime(year, month, day);
+          if (result.year == year && result.month == month && result.day == day) {
+            return result;
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 2. Numeric formats: DD/MM/YYYY, DD-MM-YYYY, DD-MM-YY, YYYY-MM-DD
     final patterns = <RegExp>[
-      RegExp(r'\b(\d{2})[/-](\d{2})[/-](\d{4})\b'),
+      RegExp(r'\b(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})\b'),
       RegExp(r'\b(\d{4})-(\d{2})-(\d{2})\b'),
     ];
 
@@ -167,7 +193,8 @@ class SmsParser {
         } else {
           day = int.parse(match.group(1)!);
           month = int.parse(match.group(2)!);
-          year = int.parse(match.group(3)!);
+          final rawYear = int.parse(match.group(3)!);
+          year = rawYear < 100 ? 2000 + rawYear : rawYear;
         }
 
         final result = DateTime(year, month, day);

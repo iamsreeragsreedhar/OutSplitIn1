@@ -281,6 +281,21 @@ void main() {
       expect(result.amount, 1.00);
       expect(result.title, 'Geetha');
     });
+    test('Federal Bank debit SMS via UPI extracts amount, date, and party', () {
+      final result = parse(
+        'Debited Rs 1.00 from a/c X8914 on 24Oct26 11:13 via UPI to SREERAG P S. Ref 629738664520.Bal Rs 15868.87. Not you?Call 18004251199 -Federal Bank',
+        senderName: 'FEDBNK',
+      );
+
+      expect(result, isNotNull);
+      expect(result!.type, TransactionType.expense);
+      expect(result.amount, 1.00);
+      expect(result.date, DateTime(2026, 10, 24));
+      expect(result.title, 'Sreerag P S');
+      expect(result.category, TransactionCategory.transfer);
+      expect(result.source, 'Federal Bank');
+    });
+
     test('Notification with "view ---" as candidate never sets title to "view ---"', () {
       final result = parse(
         'Payment received ₹100. Tap to view --- transaction details.',
