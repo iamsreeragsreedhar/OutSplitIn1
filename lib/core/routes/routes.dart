@@ -6,6 +6,7 @@ import 'package:out_split_in/feature/auth/view/login.dart';
 import 'package:out_split_in/feature/auth/view/signup.dart';
 import 'package:out_split_in/feature/category/view/category_screen.dart';
 import 'package:out_split_in/feature/chatbot/view/chatbot_screen.dart';
+import 'package:out_split_in/feature/home/model/transation_model.dart';
 import 'package:out_split_in/feature/home/view/home_page.dart';
 import 'package:out_split_in/feature/notification/view/notification_screen.dart';
 import 'package:out_split_in/feature/onboarding/view/onboarding_screen.dart';
@@ -77,6 +78,17 @@ GoRouter createRouter({String initialLocation = '/'}) => GoRouter(
         context: context,
         state: state,
         child: const SubscriptionsScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/edit-transaction',
+      name: 'edit-transaction',
+      pageBuilder: (context, state) => buildAppTransitionPage(
+        context: context,
+        state: state,
+        child: AddTransactionScreen(
+          initialTransaction: state.extra as TransactionModel?,
+        ),
       ),
     ),
     StatefulShellRoute.indexedStack(

@@ -17,15 +17,19 @@ import 'package:out_split_in/feature/add_transaction/view_model/addtrans/addtran
 import 'package:out_split_in/feature/add_transaction/widgets/date_fieild.dart';
 import 'package:out_split_in/feature/add_transaction/widgets/offline_notice_banner.dart';
 import 'package:out_split_in/feature/category/model/category_item_model.dart';
+import 'package:out_split_in/core/services/firebase_services.dart';
 import 'package:out_split_in/feature/category/view_model/category/category_bloc.dart';
 import 'package:out_split_in/feature/category/view_model/category/category_event.dart';
 import 'package:out_split_in/feature/category/view_model/category/category_state.dart';
 import 'package:out_split_in/feature/home/model/transation_model.dart'
     show TransactionModel, TransactionType;
+import 'package:out_split_in/feature/home/view_model/home/home_bloc.dart';
 import 'package:out_split_in/feature/home/widgets/functions/function.dart';
 
 class AddTransactionScreen extends StatefulWidget {
-  const AddTransactionScreen({super.key});
+  final TransactionModel? initialTransaction;
+
+  const AddTransactionScreen({super.key, this.initialTransaction});
 
   @override
   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
@@ -50,14 +54,17 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   File? _receiptFile;
 
   late final NetworkService _networkService;
+  late final FirebaseServices _firebaseServices;
   StreamSubscription<bool>? _networkSubscription;
   bool _isConnected = true;
+  bool _isUpdating = false;
 
   @override
   void initState() {
     super.initState();
     context.read<CategoryBloc>().add(const LoadCategoriesEvent());
     _networkService = sl<NetworkService>();
+    _firebaseServices = sl<FirebaseServices>();
     _isConnected = _networkService.isConnected;
     _networkSubscription =
         _networkService.onConnectivityChanged.listen((connected) {
@@ -68,6 +75,20 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       }
     });
     _checkConnection();
+
+    final initial = widget.initialTransaction;
+    if (initial != null) {
+      amountController.text = initial.amount.toStringAsFixed(
+        initial.amount.truncateToDouble() == initial.amount ? 0 : 2,
+      );
+      noteController.text = initial.title;
+      isExpense = initial.type == TransactionType.expense;
+      selectedCategory = categoryToString(initial.category);
+      selectedDate = initial.date;
+      if (initial.receiptPath != null && initial.receiptPath!.isNotEmpty) {
+        _receiptFile = File(initial.receiptPath!);
+      }
+    }
   }
 
   Future<void> _checkConnection() async {
@@ -277,7 +298,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
-  void saveTransaction() {
+  Future<void> saveTransaction() async {
     if (!formKey.currentState!.validate()) return;
 
     final sanitized = amountController.text.trim().replaceAll(',', '.');
@@ -285,6 +306,56 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     if (amount == null || amount <= 0) return;
 
     FocusScope.of(context).unfocus();
+
+    final isEdit = widget.initialTransaction != null;
+
+    if (isEdit) {
+      setState(() => _isUpdating = true);
+      try {
+        final updated = widget.initialTransaction!.copyWith(
+          type: isExpense ? TransactionType.expense : TransactionType.income,
+          amount: amount,
+          title: noteController.text.trim().isEmpty
+              ? selectedCategory
+              : noteController.text.trim(),
+          date: selectedDate,
+          category: stringToCategory(selectedCategory),
+          receiptPath: _receiptFile?.path,
+        );
+
+        final syncedOnline = await _firebaseServices.updateTransaction(
+          transaction: updated,
+        );
+
+        if (!mounted) return;
+
+        context.read<HomeBloc>().add(const fetchsmsTransactions());
+
+        if (syncedOnline) {
+          AppSnackbar.success(context, 'Transaction updated successfully!');
+        } else {
+          AppSnackbar.offline(
+            context,
+            'Saved offline! Will sync automatically once online.',
+          );
+        }
+
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context, true);
+        } else {
+          context.go('/home');
+        }
+      } catch (e) {
+        if (mounted) {
+          AppSnackbar.error(context, 'Failed to update transaction: $e');
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isUpdating = false);
+        }
+      }
+      return;
+    }
 
     context.read<AddtransBloc>().add(
       addTransaction(
@@ -435,8 +506,28 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   Widget _buildHeader(bool isDark) {
+    final isEdit = widget.initialTransaction != null;
+
     return Row(
       children: [
+        if (isEdit) ...[
+          IconButton(
+            onPressed: () {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                context.go('/home');
+              }
+            },
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: isDark ? Colors.white : textDark,
+              size: 20,
+            ),
+            tooltip: 'Back',
+          ),
+          const SizedBox(width: 4),
+        ],
         Container(
           height: 50,
           width: 50,
@@ -444,7 +535,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             color: isDark ? const Color(0xFF1E352C) : lightGreen,
             borderRadius: BorderRadius.circular(17),
           ),
-          child: const Icon(Icons.add_card_rounded, color: primary, size: 27),
+          child: Icon(
+            isEdit ? Icons.edit_note_rounded : Icons.add_card_rounded,
+            color: primary,
+            size: 27,
+          ),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -452,7 +547,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Add Transaction',
+                isEdit ? 'Edit Transaction' : 'Add Transaction',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
@@ -462,7 +557,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Track where your money goes.',
+                isEdit
+                    ? 'Update your transaction details & bill.'
+                    : 'Track where your money goes.',
                 style: TextStyle(
                   fontSize: 13,
                   color: isDark ? const Color(0xFFA1AFA9) : textMuted,
@@ -1061,11 +1158,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   Widget _buildSaveButton(bool isLoading) {
+    final isEdit = widget.initialTransaction != null;
+    final isBusy = isLoading || _isUpdating;
+
     return SizedBox(
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: isLoading ? null : saveTransaction,
+        onPressed: isBusy ? null : saveTransaction,
         style: ElevatedButton.styleFrom(
           backgroundColor: primary,
           disabledBackgroundColor: primary.withValues(alpha: 0.6),
@@ -1075,19 +1175,27 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             borderRadius: BorderRadius.circular(17),
           ),
         ),
-        child: isLoading
+        child: isBusy
             ? LoadingAnimationWidget.staggeredDotsWave(
                 color: Colors.white,
                 size: 28,
               )
-            : const Row(
+            : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.check_circle_outline_rounded, size: 21),
-                  SizedBox(width: 10),
+                  Icon(
+                    isEdit
+                        ? Icons.check_circle_rounded
+                        : Icons.check_circle_outline_rounded,
+                    size: 21,
+                  ),
+                  const SizedBox(width: 10),
                   Text(
-                    'Save Transaction',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                    isEdit ? 'Save Changes' : 'Save Transaction',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ],
               ),

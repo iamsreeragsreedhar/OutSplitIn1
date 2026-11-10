@@ -1258,6 +1258,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _showTransactionDetailsModal(transaction, isDark),
+        onLongPress: () => context.push('/edit-transaction', extra: transaction),
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
@@ -1457,6 +1458,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     ),
                                   ),
                                 ),
+                              const SizedBox(width: 4),
+                              IconButton(
+                                tooltip: 'Edit Transaction',
+                                icon: const Icon(Icons.edit_outlined, size: 20),
+                                color: isDark ? Colors.white70 : Appcolors.textDark,
+                                visualDensity: VisualDensity.compact,
+                                onPressed: () {
+                                  Navigator.pop(bottomSheetContext);
+                                  context.push('/edit-transaction', extra: transaction);
+                                },
+                              ),
                             ],
                           ),
                           const SizedBox(height: 4),
@@ -1580,6 +1592,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                 ],
                 const SizedBox(height: 24),
+                // Primary action: Edit Transaction
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Appcolors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(bottomSheetContext);
+                      context.push('/edit-transaction', extra: transaction);
+                    },
+                    icon: const Icon(Icons.edit_rounded, size: 19),
+                    label: const Text(
+                      'Edit Transaction',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 // Actions: Switch Type + Delete
                 Row(
                   children: [

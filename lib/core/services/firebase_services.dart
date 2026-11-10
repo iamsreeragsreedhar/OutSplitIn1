@@ -391,28 +391,33 @@ class FirebaseServices {
     }
   }
 
-  Future<void> updateTransaction({
+  Future<bool> updateTransaction({
     required TransactionModel transaction,
   }) async {
     await offlineStorage.saveSingleTransactionLocally(transaction);
     final isOnline = await networkService.checkIsConnected();
     if (!isOnline) {
       await offlineStorage.savePendingSyncTransaction(transaction);
-      return;
+      return false;
     }
 
     try {
       final userId = _getCurrentUserId();
-      await firestore
+      final docRef = firestore
           .collection('users')
           .doc(userId)
           .collection('transactions')
-          .doc(transaction.id)
-          .update(transaction.toMap())
+          .doc(transaction.id);
+
+      await docRef
+          .set(transaction.toMap(), SetOptions(merge: true))
           .timeout(const Duration(seconds: 15));
+      await offlineStorage.removePendingSyncTransaction(transaction.id);
+      return true;
     } catch (e) {
       debugPrint('Error updating transaction in cloud: $e');
       await offlineStorage.savePendingSyncTransaction(transaction);
+      return false;
     }
   }
 
