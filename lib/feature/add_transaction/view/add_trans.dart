@@ -382,8 +382,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return SafeArea(
-      child: BlocConsumer<AddtransBloc, AddtransState>(
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: SafeArea(
+        child: BlocConsumer<AddtransBloc, AddtransState>(
         listener: (context, state) {
           if (state.loadingStatus == LoadingStatus.success) {
             final isOffline = state.msg.toLowerCase().contains('offline');
@@ -502,8 +504,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           );
         },
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildHeader(bool isDark) {
     final isEdit = widget.initialTransaction != null;
