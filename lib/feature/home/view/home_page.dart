@@ -13,6 +13,8 @@ import 'package:out_split_in/core/services/network_service.dart';
 import 'package:out_split_in/core/services/upi_notification_service.dart';
 import 'package:out_split_in/core/shared_widgets/animated_currency_text.dart';
 import 'package:out_split_in/core/shared_widgets/app_fade_slide.dart';
+import 'package:out_split_in/core/shared_widgets/app_shimmer.dart';
+import 'package:out_split_in/core/shared_widgets/bouncy_tap.dart';
 import 'package:out_split_in/core/shared_widgets/export_statement_sheet.dart';
 import 'package:out_split_in/core/shared_widgets/monthly_budget_dialog.dart';
 import 'package:out_split_in/core/shared_widgets/network_status_banner.dart';
@@ -43,12 +45,22 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _hideBalance = false;
   bool _hasUpiPermission = true;
+  bool _isRefreshing = false;
   HomeTransactionFilter _activeFilter = HomeTransactionFilter.all;
   late final UpiNotificationService _upiService;
   late final NetworkService _networkService;
   late final FirebaseServices _firebaseServices;
   StreamSubscription<TransactionModel>? _upiSubscription;
   StreamSubscription<bool>? _networkSubscription;
+
+  Future<void> _handleRefresh() async {
+    setState(() => _isRefreshing = true);
+    context.read<HomeBloc>().add(const fetchsmsTransactions());
+    await Future<void>.delayed(const Duration(milliseconds: 700));
+    if (mounted) {
+      setState(() => _isRefreshing = false);
+    }
+  }
 
   @override
   void initState() {
@@ -201,6 +213,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
             final filteredTransactions = _applyFilter(transactions);
             final dayGroups = _groupDayWise(filteredTransactions);
+            final showShimmer = _isRefreshing ||
+                (state.loadingStatus == HomeLoadingStatus.loading && transactions.isEmpty);
 
             return LayoutBuilder(
               builder: (context, constraints) {
@@ -209,14 +223,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                 return RefreshIndicator(
                   color: Appcolors.primary,
-                  onRefresh: () async {
-                    context.read<HomeBloc>().add(const fetchsmsTransactions());
-                    await Future<void>.delayed(const Duration(milliseconds: 500));
-                  },
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsets.fromLTRB(horizontalPadding, 20, horizontalPadding, 110),
-                    child: Center(
+                  backgroundColor: isDark ? const Color(0xFF1E2824) : Colors.white,
+                  onRefresh: _handleRefresh,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 320),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    child: showShimmer
+                        ? const HomeShimmerView(key: ValueKey('home_shimmer'))
+                        : SingleChildScrollView(
+                            key: const ValueKey('home_content'),
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: EdgeInsets.fromLTRB(horizontalPadding, 20, horizontalPadding, 110),
+                            child: Center(
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 1000),
                         child: Column(
@@ -610,7 +629,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                             ),
                                             itemBuilder: (context, index) {
                                               final transaction = dayList[index];
-                                              return _transactionTile(transaction, isDark);
+                                              return AppFadeSlide(
+                                                delay: Duration(milliseconds: (index.clamp(0, 8)) * 30),
+                                                direction: SlideDirection.fromBottom,
+                                                child: _transactionTile(transaction, isDark),
+                                              );
                                             },
                                           ),
                                         ],
@@ -626,14 +649,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
                     ),
                   ),
-                );
-              },
-            );
-          },
-        ),
+                ),
+              );
+            },
+          );
+        },
       ),
-    );
-  }
+    ),
+  );
+}
 
   List<TransactionModel> _applyFilter(List<TransactionModel> list) {
     final now = DateTime.now();
@@ -695,29 +719,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final isSelected = _activeFilter == filter;
     return Padding(
       padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        label: Text(label),
-        selected: isSelected,
-        onSelected: (selected) {
-          if (selected) {
-            setState(() => _activeFilter = filter);
-          }
-        },
-        selectedColor: isDark ? const Color(0xFF1E352C) : Appcolors.lightGreen,
-        backgroundColor: isDark ? const Color(0xFF1E2824) : Colors.white,
-        labelStyle: TextStyle(
-          color: isSelected
-              ? Appcolors.primary
-              : (isDark ? const Color(0xFFA1AFA9) : Appcolors.textDark),
-          fontSize: 12,
-          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(
+      child: AppBouncyTap(
+        scaleDown: 0.94,
+        child: ChoiceChip(
+          label: Text(label),
+          selected: isSelected,
+          onSelected: (selected) {
+            if (selected) {
+              setState(() => _activeFilter = filter);
+            }
+          },
+          selectedColor: isDark ? const Color(0xFF1E352C) : Appcolors.lightGreen,
+          backgroundColor: isDark ? const Color(0xFF1E2824) : Colors.white,
+          labelStyle: TextStyle(
             color: isSelected
                 ? Appcolors.primary
-                : (isDark ? const Color(0xFF283631) : const Color(0xFFE9EFEC)),
+                : (isDark ? const Color(0xFFA1AFA9) : Appcolors.textDark),
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: isSelected
+                  ? Appcolors.primary
+                  : (isDark ? const Color(0xFF283631) : const Color(0xFFE9EFEC)),
+            ),
           ),
         ),
       ),
@@ -880,11 +907,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               const SizedBox(height: 9),
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 8,
-                  backgroundColor: isDark ? const Color(0xFF283631) : const Color(0xFFE9EFEC),
-                  valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0.0, end: progress),
+                  duration: const Duration(milliseconds: 750),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, animValue, _) {
+                    return LinearProgressIndicator(
+                      value: animValue,
+                      minHeight: 8,
+                      backgroundColor: isDark ? const Color(0xFF283631) : const Color(0xFFE9EFEC),
+                      valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                    );
+                  },
                 ),
               ),
             ],
@@ -1177,67 +1211,70 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     required Color color,
     required bool isDark,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E2824) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isDark ? const Color(0xFF283631) : const Color(0xFFE9EFEC)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+    return AppBouncyTap(
+      scaleDown: 0.97,
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E2824) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: isDark ? const Color(0xFF283631) : const Color(0xFFE9EFEC)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: color, size: 20),
                 ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              const Spacer(),
-              Text(
-                title,
+                const Spacer(),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: isDark ? const Color(0xFFA1AFA9) : Appcolors.textMuted,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: AnimatedCurrencyText(
+                amount: amount,
                 style: TextStyle(
-                  color: isDark ? const Color(0xFFA1AFA9) : Appcolors.textMuted,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : Appcolors.textDark,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: AnimatedCurrencyText(
-              amount: amount,
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'Total $title'.toLowerCase(),
               style: TextStyle(
-                color: isDark ? Colors.white : Appcolors.textDark,
-                fontSize: 19,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.4,
+                color: isDark ? const Color(0xFFA1AFA9) : Appcolors.textMuted,
+                fontSize: 11,
               ),
             ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            'Total $title'.toLowerCase(),
-            style: TextStyle(
-              color: isDark ? const Color(0xFFA1AFA9) : Appcolors.textMuted,
-              fontSize: 11,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1254,8 +1291,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ? (isDark ? const Color(0xFF274D3B) : const Color(0xFFCBEFDF))
         : (isDark ? const Color(0xFF4D2426) : const Color(0xFFFCDADA));
 
-    return Material(
-      color: Colors.transparent,
+    return AppBouncyTap(
+      scaleDown: 0.98,
+      child: Material(
+        color: Colors.transparent,
       child: InkWell(
         onTap: () => _showTransactionDetailsModal(transaction, isDark),
         onLongPress: () => context.push('/edit-transaction', extra: transaction),
@@ -1374,8 +1413,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Future<void> _showTransactionDetailsModal(TransactionModel transaction, bool isDark) async {
     final isIncome = transaction.type == TransactionType.income;

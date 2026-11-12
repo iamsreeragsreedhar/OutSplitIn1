@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:out_split_in/core/shared_widgets/bouncy_tap.dart';
 import 'package:out_split_in/feature/notification/model/app_notification_model.dart';
 
 class NotificationTile extends StatelessWidget {
@@ -35,9 +36,9 @@ class NotificationTile extends StatelessWidget {
         ),
     };
 
-    return InkWell(
+    return AppBouncyTap(
+      scaleDown: 0.98,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(

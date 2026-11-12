@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:out_split_in/core/shared_widgets/bouncy_tap.dart';
 import 'package:out_split_in/feature/category/model/category_item_model.dart';
 import 'package:out_split_in/feature/home/model/transation_model.dart';
 
 class CategoryCard extends StatelessWidget {
   final CategoryItemModel category;
   final VoidCallback? onDelete;
+  final VoidCallback? onTap;
 
   const CategoryCard({
     super.key,
     required this.category,
     this.onDelete,
+    this.onTap,
   });
 
   @override
@@ -17,23 +20,26 @@ class CategoryCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isIncome = category.type == TransactionType.income;
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E2824) : Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: isDark ? const Color(0xFF283631) : const Color(0xFFE9EFEC),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+    return AppBouncyTap(
+      scaleDown: 0.98,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E2824) : Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isDark ? const Color(0xFF283631) : const Color(0xFFE9EFEC),
           ),
-        ],
-      ),
-      child: Row(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
         children: [
           Container(
             width: 46,
@@ -121,6 +127,7 @@ class CategoryCard extends StatelessWidget {
             ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

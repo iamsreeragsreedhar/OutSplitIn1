@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:out_split_in/core/shared_widgets/app_fade_slide.dart';
+import 'package:out_split_in/core/shared_widgets/app_shimmer.dart';
 import 'package:out_split_in/core/shared_widgets/snackbar.dart';
 import 'package:out_split_in/feature/category/view_model/category/category_bloc.dart';
 import 'package:out_split_in/feature/category/view_model/category/category_event.dart';
@@ -18,6 +19,8 @@ class CategoryScreen extends StatefulWidget {
 }
 
 class _CategoryScreenState extends State<CategoryScreen> {
+  bool _isRefreshing = false;
+
   @override
   void initState() {
     super.initState();
@@ -90,7 +93,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
           },
           builder: (context, state) {
             if (state.status == CategoryStatus.loading && state.allCategories.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
+              return const CategoryShimmerView();
             }
 
             final categories = state.filteredCategories;
@@ -113,31 +116,49 @@ class _CategoryScreenState extends State<CategoryScreen> {
                       ),
                       const SizedBox(height: 16),
                       Expanded(
-                        child: categories.isEmpty
-                            ? const CategoryEmptyView()
-                            : RefreshIndicator(
-                                onRefresh: () async {
-                                  context.read<CategoryBloc>().add(const LoadCategoriesEvent());
-                                },
-                                child: ListView.separated(
-                                  physics: const AlwaysScrollableScrollPhysics(),
-                                  itemCount: categories.length,
-                                  separatorBuilder: (_, _) => const SizedBox(height: 10),
-                                  itemBuilder: (context, index) {
-                                    final cat = categories[index];
-                                    return AppFadeSlide(
-                                      delay: Duration(milliseconds: (index.clamp(0, 10)) * 30),
-                                      direction: SlideDirection.fromBottom,
-                                      child: CategoryCard(
-                                        category: cat,
-                                        onDelete: cat.isCustom
-                                            ? () => _confirmDelete(context, cat.id, cat.name)
-                                            : null,
+                        child: RefreshIndicator(
+                          onRefresh: () async {
+                            setState(() => _isRefreshing = true);
+                            context.read<CategoryBloc>().add(const LoadCategoriesEvent());
+                            await Future.delayed(const Duration(milliseconds: 650));
+                            if (mounted) setState(() => _isRefreshing = false);
+                          },
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 320),
+                            switchInCurve: Curves.easeOutCubic,
+                            switchOutCurve: Curves.easeInCubic,
+                            child: _isRefreshing
+                                ? const CategoryShimmerView(
+                                    key: ValueKey('category_shimmer'),
+                                    showHeader: false,
+                                  )
+                                : categories.isEmpty
+                                    ? const SingleChildScrollView(
+                                        key: ValueKey('category_empty'),
+                                        physics: AlwaysScrollableScrollPhysics(),
+                                        child: CategoryEmptyView(),
+                                      )
+                                    : ListView.separated(
+                                        key: const ValueKey('category_list'),
+                                        physics: const AlwaysScrollableScrollPhysics(),
+                                        itemCount: categories.length,
+                                        separatorBuilder: (_, _) => const SizedBox(height: 10),
+                                        itemBuilder: (context, index) {
+                                          final cat = categories[index];
+                                          return AppFadeSlide(
+                                            delay: Duration(milliseconds: (index.clamp(0, 10)) * 30),
+                                            direction: SlideDirection.fromBottom,
+                                            child: CategoryCard(
+                                              category: cat,
+                                              onDelete: cat.isCustom
+                                                  ? () => _confirmDelete(context, cat.id, cat.name)
+                                                  : null,
+                                            ),
+                                          );
+                                        },
                                       ),
-                                    );
-                                  },
-                                ),
-                              ),
+                          ),
+                        ),
                       ),
                     ],
                   ),

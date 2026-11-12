@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:out_split_in/core/shared_widgets/animated_currency_text.dart';
 import 'package:out_split_in/core/shared_widgets/animated_pulse_badge.dart';
 import 'package:out_split_in/core/shared_widgets/app_fade_slide.dart';
+import 'package:out_split_in/core/shared_widgets/app_shimmer.dart';
+import 'package:out_split_in/core/shared_widgets/bouncy_tap.dart';
 import 'package:out_split_in/core/theme/view_model/theme_bloc.dart';
 import 'package:out_split_in/feature/category/model/category_item_model.dart';
 import 'package:out_split_in/feature/category/widgets/category_card.dart';
@@ -192,5 +194,42 @@ void main() {
     expect(find.text('Light Theme'), findsOneWidget);
     expect(find.text('Dark Theme'), findsOneWidget);
     expect(find.text('System Default'), findsOneWidget);
+  });
+
+  testWidgets('AppBouncyTap triggers onTap and renders child', (
+    WidgetTester tester,
+  ) async {
+    var tapped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AppBouncyTap(
+            onTap: () => tapped = true,
+            child: const Text('Bounce Target'),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Bounce Target'), findsOneWidget);
+    await tester.tap(find.text('Bounce Target'));
+    await tester.pumpAndSettle();
+    expect(tapped, isTrue);
+  });
+
+  testWidgets('AppShimmer renders skeleton views without errors', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: CategoryShimmerView(showHeader: false),
+        ),
+      ),
+    );
+
+    expect(find.byType(CategoryShimmerView), findsOneWidget);
+    expect(find.byType(AppShimmer), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 300));
   });
 }

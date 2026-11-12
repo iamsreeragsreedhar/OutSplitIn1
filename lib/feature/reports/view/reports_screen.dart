@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:out_split_in/core/shared_widgets/app_fade_slide.dart';
+import 'package:out_split_in/core/shared_widgets/app_shimmer.dart';
+import 'package:out_split_in/core/shared_widgets/bouncy_tap.dart';
 import 'package:out_split_in/core/shared_widgets/export_statement_sheet.dart';
 import 'package:out_split_in/feature/home/model/transation_model.dart';
 import 'package:out_split_in/feature/home/view_model/home/home_bloc.dart';
@@ -20,6 +22,7 @@ class ReportsScreen extends StatefulWidget {
 
 class _ReportsScreenState extends State<ReportsScreen> {
   TimeframeFilter _timeframe = TimeframeFilter.month;
+  bool _isRefreshing = false;
 
   static const Color textDark = Color(0xFF18231F);
   static const Color muted = Color(0xFF84918B);
@@ -128,6 +131,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
               state.transactions.whereType<TransactionModel>().toList(),
             );
 
+            final showShimmer = _isRefreshing ||
+                (state.loadingStatus == HomeLoadingStatus.loading && state.transactions.isEmpty);
+
             return LayoutBuilder(
               builder: (context, constraints) {
                 final maxWidth = constraints.maxWidth > 720
@@ -136,16 +142,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
                 return RefreshIndicator(
                   color: const Color(0xFF0BA874),
+                  backgroundColor: isDark ? const Color(0xFF1E2824) : Colors.white,
                   onRefresh: () async {
+                    setState(() => _isRefreshing = true);
                     context.read<HomeBloc>().add(const fetchsmsTransactions());
-                    await Future<void>.delayed(
-                      const Duration(milliseconds: 500),
-                    );
+                    await Future<void>.delayed(const Duration(milliseconds: 650));
+                    if (mounted) setState(() => _isRefreshing = false);
                   },
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(20, 22, 20, 110),
-                    child: Center(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 320),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    child: showShimmer
+                        ? const ReportsShimmerView(key: ValueKey('reports_shimmer'))
+                        : SingleChildScrollView(
+                            key: const ValueKey('reports_content'),
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(20, 22, 20, 110),
+                            child: Center(
                       child: ConstrainedBox(
                         constraints: BoxConstraints(maxWidth: maxWidth),
                         child: Column(
@@ -251,9 +265,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       ),
                     ),
                   ),
-                );
-              },
-            );
+                ),
+              );
+            },
+          );
           },
         ),
       ),
@@ -320,46 +335,49 @@ class _ReportsScreenState extends State<ReportsScreen> {
     required String subtitle,
     required Widget child,
   }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E2824) : Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: isDark ? const Color(0xFF283631) : const Color(0xFFE9EFEC),
+    return AppBouncyTap(
+      scaleDown: 0.985,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E2824) : Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: isDark ? const Color(0xFF283631) : const Color(0xFFE9EFEC),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.025),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.025),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-              color: isDark ? Colors.white : textDark,
-              letterSpacing: -0.3,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : textDark,
+                letterSpacing: -0.3,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 12,
-              color: isDark ? const Color(0xFFA1AFA9) : muted,
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? const Color(0xFFA1AFA9) : muted,
+              ),
             ),
-          ),
-          const SizedBox(height: 18),
-          child,
-        ],
+            const SizedBox(height: 18),
+            child,
+          ],
+        ),
       ),
     );
   }

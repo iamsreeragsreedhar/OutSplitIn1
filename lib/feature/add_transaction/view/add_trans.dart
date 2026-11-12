@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:out_split_in/core/service_locator/di.dart';
 import 'package:out_split_in/core/services/network_service.dart';
 import 'package:out_split_in/core/shared_widgets/app_fade_slide.dart';
+import 'package:out_split_in/core/shared_widgets/bouncy_tap.dart';
 import 'package:out_split_in/core/shared_widgets/receipt_viewer_dialog.dart';
 
 import 'package:out_split_in/core/shared_widgets/extensions/date_ext.dart';
@@ -638,42 +639,39 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     required bool isDark,
     required VoidCallback onTap,
   }) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      decoration: BoxDecoration(
-        color: selected ? color : Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
+    return AppBouncyTap(
+      scaleDown: 0.95,
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: selected ? color : Colors.transparent,
           borderRadius: BorderRadius.circular(14),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  icon,
-                  size: 18,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: selected
+                    ? Colors.white
+                    : (isDark ? const Color(0xFFA1AFA9) : textMuted),
+              ),
+              const SizedBox(width: 7),
+              Text(
+                label,
+                style: TextStyle(
                   color: selected
                       ? Colors.white
                       : (isDark ? const Color(0xFFA1AFA9) : textMuted),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
                 ),
-                const SizedBox(width: 7),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: selected
-                        ? Colors.white
-                        : (isDark ? const Color(0xFFA1AFA9) : textMuted),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1164,44 +1162,48 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     final isEdit = widget.initialTransaction != null;
     final isBusy = isLoading || _isUpdating;
 
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: isBusy ? null : saveTransaction,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primary,
-          disabledBackgroundColor: primary.withValues(alpha: 0.6),
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(17),
+    return AppBouncyTap(
+      scaleDown: 0.97,
+      onTap: isBusy ? null : saveTransaction,
+      child: SizedBox(
+        width: double.infinity,
+        height: 56,
+        child: ElevatedButton(
+          onPressed: isBusy ? null : saveTransaction,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: primary,
+            disabledBackgroundColor: primary.withValues(alpha: 0.6),
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(17),
+            ),
           ),
-        ),
-        child: isBusy
-            ? LoadingAnimationWidget.staggeredDotsWave(
-                color: Colors.white,
-                size: 28,
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    isEdit
-                        ? Icons.check_circle_rounded
-                        : Icons.check_circle_outline_rounded,
-                    size: 21,
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    isEdit ? 'Save Changes' : 'Save Transaction',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
+          child: isBusy
+              ? LoadingAnimationWidget.staggeredDotsWave(
+                  color: Colors.white,
+                  size: 28,
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      isEdit
+                          ? Icons.check_circle_rounded
+                          : Icons.check_circle_outline_rounded,
+                      size: 21,
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(width: 10),
+                    Text(
+                      isEdit ? 'Save Changes' : 'Save Transaction',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
       ),
     );
   }

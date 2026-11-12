@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:out_split_in/core/shared_widgets/bouncy_tap.dart';
 
 class SettingsListtile extends StatelessWidget {
   final IconData icon;
@@ -20,7 +21,8 @@ class SettingsListtile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return GestureDetector(
+    return AppBouncyTap(
+      scaleDown: 0.985,
       onTap: ontap,
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 5),

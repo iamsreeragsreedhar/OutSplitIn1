@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:out_split_in/core/service_locator/di.dart';
 import 'package:out_split_in/core/services/firebase_services.dart';
 import 'package:out_split_in/core/shared_widgets/app_fade_slide.dart';
+import 'package:out_split_in/core/shared_widgets/app_shimmer.dart';
+import 'package:out_split_in/core/shared_widgets/bouncy_tap.dart';
 import 'package:out_split_in/core/shared_widgets/snackbar.dart';
 import 'package:out_split_in/feature/home/view_model/home/home_bloc.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -30,6 +32,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
 
   List<SubscriptionModel> _subscriptions = [];
   bool _isLoading = true;
+  bool _isRefreshing = false;
 
   @override
   void initState() {
@@ -39,13 +42,21 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
     _loadData();
   }
 
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadData({bool isRefresh = false}) async {
+    if (isRefresh) {
+      setState(() => _isRefreshing = true);
+    } else {
+      setState(() => _isLoading = true);
+    }
     final list = await _subscriptionService.getSubscriptions();
+    if (isRefresh) {
+      await Future.delayed(const Duration(milliseconds: 650));
+    }
     if (mounted) {
       setState(() {
         _subscriptions = list;
         _isLoading = false;
+        _isRefreshing = false;
       });
     }
   }
@@ -104,52 +115,60 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: primary))
+          ? const SubscriptionShimmerView()
           : RefreshIndicator(
               color: primary,
-              onRefresh: _loadData,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Total Burn Overview Card
-                    AppFadeSlide(
-                      direction: SlideDirection.fromTop,
-                      child: _buildCommitmentCard(isDark, currencyFormat),
-                    ),
+              onRefresh: () => _loadData(isRefresh: true),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 320),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                child: _isRefreshing
+                    ? const SubscriptionShimmerView(key: ValueKey('sub_shimmer'))
+                    : SingleChildScrollView(
+                        key: const ValueKey('sub_content'),
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Total Burn Overview Card
+                            AppFadeSlide(
+                              direction: SlideDirection.fromTop,
+                              child: _buildCommitmentCard(isDark, currencyFormat),
+                            ),
 
-                    const SizedBox(height: 24),
+                            const SizedBox(height: 24),
 
-                    // Upcoming Renewals (Due within 7 days)
-                    if (_upcomingRenewals.isNotEmpty) ...[
-                      _sectionTitle('UPCOMING BILLS (NEXT 7 DAYS)', isDark),
-                      const SizedBox(height: 10),
-                      ..._upcomingRenewals.map(
-                        (sub) => AppFadeSlide(
-                          delay: const Duration(milliseconds: 100),
-                          child: _buildUpcomingCard(sub, isDark, currencyFormat),
+                            // Upcoming Renewals (Due within 7 days)
+                            if (_upcomingRenewals.isNotEmpty) ...[
+                              _sectionTitle('UPCOMING BILLS (NEXT 7 DAYS)', isDark),
+                              const SizedBox(height: 10),
+                              ..._upcomingRenewals.map(
+                                (sub) => AppFadeSlide(
+                                  delay: const Duration(milliseconds: 100),
+                                  child: _buildUpcomingCard(sub, isDark, currencyFormat),
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                            ],
+
+                            // All Active Subscriptions
+                            _sectionTitle('ACTIVE SUBSCRIPTIONS (${_subscriptions.where((s) => s.isActive).length})', isDark),
+                            const SizedBox(height: 10),
+
+                            if (_subscriptions.isEmpty)
+                              _buildEmptyState(isDark)
+                            else
+                              ..._subscriptions.map(
+                                (sub) => AppFadeSlide(
+                                  delay: const Duration(milliseconds: 120),
+                                  child: _buildSubscriptionTile(sub, isDark, currencyFormat),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 24),
-                    ],
-
-                    // All Active Subscriptions
-                    _sectionTitle('ACTIVE SUBSCRIPTIONS (${_subscriptions.where((s) => s.isActive).length})', isDark),
-                    const SizedBox(height: 10),
-
-                    if (_subscriptions.isEmpty)
-                      _buildEmptyState(isDark)
-                    else
-                      ..._subscriptions.map(
-                        (sub) => AppFadeSlide(
-                          delay: const Duration(milliseconds: 120),
-                          child: _buildSubscriptionTile(sub, isDark, currencyFormat),
-                        ),
-                      ),
-                  ],
-                ),
               ),
             ),
     );
@@ -168,9 +187,11 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
   }
 
   Widget _buildCommitmentCard(bool isDark, NumberFormat format) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
+    return AppBouncyTap(
+      scaleDown: 0.985,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: isDark
@@ -254,8 +275,9 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildUpcomingCard(
     SubscriptionModel sub,
@@ -276,9 +298,12 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
       badgeText = 'Due in ${sub.daysUntilDue}d';
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+    return AppBouncyTap(
+      scaleDown: 0.98,
+      onTap: () => _openAddEditSheet(isDark, existing: sub),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E2824) : Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -358,17 +383,21 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSubscriptionTile(
     SubscriptionModel sub,
     bool isDark,
     NumberFormat format,
   ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+    return AppBouncyTap(
+      scaleDown: 0.98,
+      onTap: () => _openAddEditSheet(isDark, existing: sub),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E2824) : Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -500,8 +529,9 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _categoryIcon(String category, bool isDark) {
     IconData icon;

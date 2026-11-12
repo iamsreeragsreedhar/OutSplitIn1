@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:out_split_in/core/shared_widgets/app_fade_slide.dart';
+import 'package:out_split_in/core/shared_widgets/app_shimmer.dart';
 import 'package:out_split_in/core/shared_widgets/snackbar.dart';
 import 'package:out_split_in/feature/notification/view_model/notification/notification_bloc.dart';
 import 'package:out_split_in/feature/notification/view_model/notification/notification_event.dart';
@@ -17,6 +18,8 @@ class NotificationScreen extends StatefulWidget {
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
+  bool _isRefreshing = false;
+
   @override
   void initState() {
     super.initState();
@@ -110,7 +113,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
           builder: (context, state) {
             if (state.status == NotificationStatus.loading &&
                 state.notifications.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
+              return const NotificationShimmerView();
             }
 
             final filteredList = state.filteredNotifications;
@@ -136,46 +139,64 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       ),
                       const SizedBox(height: 14),
                       Expanded(
-                        child: filteredList.isEmpty
-                            ? const NotificationEmptyView()
-                            : RefreshIndicator(
-                                onRefresh: () async {
-                                  context
-                                      .read<NotificationBloc>()
-                                      .add(const LoadNotificationsEvent());
-                                },
-                                child: ListView.separated(
-                                  physics:
-                                      const AlwaysScrollableScrollPhysics(),
-                                  itemCount: filteredList.length,
-                                  separatorBuilder: (_, _) =>
-                                      const SizedBox(height: 10),
-                                  itemBuilder: (context, index) {
-                                    final notif = filteredList[index];
-                                    return AppFadeSlide(
-                                      delay: Duration(
-                                        milliseconds:
-                                            (index.clamp(0, 10)) * 30,
-                                      ),
-                                      direction: SlideDirection.fromBottom,
-                                      child: NotificationTile(
-                                        notification: notif,
-                                        onTap: () {
-                                          if (!notif.isRead) {
-                                            context
-                                                .read<NotificationBloc>()
-                                                .add(
-                                                  MarkNotificationReadEvent(
-                                                    notif.id,
-                                                  ),
-                                                );
-                                          }
+                        child: RefreshIndicator(
+                          onRefresh: () async {
+                            setState(() => _isRefreshing = true);
+                            context
+                                .read<NotificationBloc>()
+                                .add(const LoadNotificationsEvent());
+                            await Future.delayed(const Duration(milliseconds: 650));
+                            if (mounted) setState(() => _isRefreshing = false);
+                          },
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 320),
+                            switchInCurve: Curves.easeOutCubic,
+                            switchOutCurve: Curves.easeInCubic,
+                            child: _isRefreshing
+                                ? const NotificationShimmerView(
+                                    key: ValueKey('notification_shimmer'),
+                                    showHeader: false,
+                                  )
+                                : filteredList.isEmpty
+                                    ? const SingleChildScrollView(
+                                        key: ValueKey('notification_empty'),
+                                        physics: AlwaysScrollableScrollPhysics(),
+                                        child: NotificationEmptyView(),
+                                      )
+                                    : ListView.separated(
+                                        key: const ValueKey('notification_list'),
+                                        physics:
+                                            const AlwaysScrollableScrollPhysics(),
+                                        itemCount: filteredList.length,
+                                        separatorBuilder: (_, _) =>
+                                            const SizedBox(height: 10),
+                                        itemBuilder: (context, index) {
+                                          final notif = filteredList[index];
+                                          return AppFadeSlide(
+                                            delay: Duration(
+                                              milliseconds:
+                                                  (index.clamp(0, 10)) * 30,
+                                            ),
+                                            direction: SlideDirection.fromBottom,
+                                            child: NotificationTile(
+                                              notification: notif,
+                                              onTap: () {
+                                                if (!notif.isRead) {
+                                                  context
+                                                      .read<NotificationBloc>()
+                                                      .add(
+                                                        MarkNotificationReadEvent(
+                                                          notif.id,
+                                                        ),
+                                                      );
+                                                }
+                                              },
+                                            ),
+                                          );
                                         },
                                       ),
-                                    );
-                                  },
-                                ),
-                              ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
